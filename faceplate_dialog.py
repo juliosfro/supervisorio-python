@@ -385,7 +385,7 @@ class FaceplateDialog(QDialog):
             }
         """
 
-        # Categoria 1: Identificação (Altura ajustada para acomodar o QTextEdit de 3 linhas)
+        # Categoria 1: Identificação
         gb_ident = QGroupBox("IDENTIFICAÇÃO")
         gb_ident.setStyleSheet(group_style)
         gb_ident.setFixedHeight(105)
@@ -413,7 +413,6 @@ class FaceplateDialog(QDialog):
         lbl_nome = QLabel("Nome")
         lbl_nome.setStyleSheet("font-size: 11px; font-weight: 600; color: #374151; border: none; background: transparent;")
         
-        # Transformado em QTextEdit com largura de 365px e altura equivalente a ~3 linhas
         self.inp_config_nome = QTextEdit(self.data.get('desc', ''))
         self.inp_config_nome.setFixedSize(365, 40)
         self.inp_config_nome.setStyleSheet("""
@@ -472,8 +471,55 @@ class FaceplateDialog(QDialog):
         self.inp_freq_min = create_freq_row(0, "Freq. Mínima", "5,0")
         self.inp_freq_max = create_freq_row(1, "Freq. Máxima", "60,0")
 
+        # Categoria 3: Temporizações (Novo GroupBox solicitado)
+        gb_time = QGroupBox("TEMPORIZAÇÕES")
+        gb_time.setStyleSheet(group_style)
+        grid_time = QGridLayout(gb_time)
+        grid_time.setContentsMargins(12, 10, 12, 8)
+        grid_time.setHorizontalSpacing(10)
+        grid_time.setVerticalSpacing(6)
+        grid_time.setAlignment(Qt.AlignLeft)
+
+        def create_time_row(row_idx, label_text, default_val):
+            lbl = QLabel(label_text)
+            lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #374151; border: none; background: transparent;")
+
+            container = QWidget()
+            container.setStyleSheet("background: transparent; border: none;")
+            h_layout = QHBoxLayout(container)
+            h_layout.setContentsMargins(0, 0, 0, 0)
+            h_layout.setSpacing(6)
+
+            inp = QLineEdit(default_val)
+            inp.setFixedSize(90, 24)
+            inp.setStyleSheet("""
+                QLineEdit {
+                    color: #1F2937; font-size: 11px; font-weight: bold;
+                    background-color: #FFFFFF; border: 1px solid #CBD5E1;
+                    border-radius: 3px; padding-left: 4px;
+                }
+            """)
+            validator = QDoubleValidator(0.0, 999.0, 2, inp)
+            validator.setNotation(QDoubleValidator.StandardNotation)
+            inp.setValidator(validator)
+
+            u_lbl = QLabel("Segundos")
+            u_lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #475569; border: none; background: transparent;")
+
+            h_layout.addWidget(inp)
+            h_layout.addWidget(u_lbl)
+            h_layout.addStretch()
+
+            grid_time.addWidget(lbl, row_idx, 0, alignment=Qt.AlignLeft)
+            grid_time.addWidget(container, row_idx, 1, alignment=Qt.AlignLeft)
+            return inp
+
+        self.inp_tempo_retorno = create_time_row(0, "Tempo Retorno", "2,0")
+        self.inp_tempo_falha = create_time_row(1, "Tempo Falha", "5,0")
+
         l.addWidget(gb_ident)
         l.addWidget(gb_limits)
+        l.addWidget(gb_time)
         l.addStretch()
         return w
 
