@@ -385,13 +385,15 @@ class FaceplateDialog(QDialog):
             }
         """
 
-        # Categoria 1: Identificação (Margens verticais e espaçamento interno otimizados)
+        # Categoria 1: Identificação (Altura ajustada para acomodar o QTextEdit de 3 linhas)
         gb_ident = QGroupBox("IDENTIFICAÇÃO")
         gb_ident.setStyleSheet(group_style)
+        gb_ident.setFixedHeight(105)
+        
         grid_ident = QGridLayout(gb_ident)
-        grid_ident.setContentsMargins(12, 4, 12, 8)
+        grid_ident.setContentsMargins(12, 10, 12, 8)
         grid_ident.setHorizontalSpacing(10)
-        grid_ident.setVerticalSpacing(2)
+        grid_ident.setVerticalSpacing(6)
         grid_ident.setAlignment(Qt.AlignLeft)
 
         lbl_tag = QLabel("Tag")
@@ -410,16 +412,18 @@ class FaceplateDialog(QDialog):
 
         lbl_nome = QLabel("Nome")
         lbl_nome.setStyleSheet("font-size: 11px; font-weight: 600; color: #374151; border: none; background: transparent;")
+        
+        # Transformado em QTextEdit com largura de 365px e altura equivalente a ~3 linhas
         self.inp_config_nome = QTextEdit(self.data.get('desc', ''))
-        self.inp_config_nome.setFixedSize(280, 40)
+        self.inp_config_nome.setFixedSize(365, 40)
         self.inp_config_nome.setStyleSheet("""
             QTextEdit {
                 color: #1F2937; font-size: 11px; font-weight: bold;
                 background-color: #FFFFFF; border: 1px solid #CBD5E1;
-                border-radius: 3px; padding: 4px;
+                border-radius: 3px; padding: 2px 4px;
             }
         """)
-        grid_ident.addWidget(lbl_nome, 1, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+        grid_ident.addWidget(lbl_nome, 1, 0, alignment=Qt.AlignLeft)
         grid_ident.addWidget(self.inp_config_nome, 1, 1, alignment=Qt.AlignLeft)
 
         # Categoria 2: Limites de Operação
