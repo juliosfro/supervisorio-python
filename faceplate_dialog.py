@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QDoubleValidator, QFont
 from PyQt5.QtWidgets import (
-    QWidget, QFrame, QLabel, QLineEdit, QPushButton,
+    QWidget, QFrame, QLabel, QLineEdit, QTextEdit, QPushButton,
     QVBoxLayout, QHBoxLayout, QGridLayout, QStackedLayout,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog, QGroupBox
 )
@@ -21,10 +21,10 @@ class FaceplateDialog(QDialog):
         self.main_app = main_app
         
         if 'modo' not in self.data:
-            self.data['modo'] = 'MAN'  # 'MAN' ou 'AUTO'
+            self.data['modo'] = 'MAN'  # 'MAN', 'AUTO', 'LOCAL' ou 'REMOTO'
             
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
-        self.setFixedSize(450, 530)
+        self.setFixedSize(450, 590)
         self.setStyleSheet("""
             QDialog {
                 background-color: #EAEBF0; 
@@ -131,23 +131,31 @@ class FaceplateDialog(QDialog):
         # --- SEÇÃO 1: MODO DE OPERAÇÃO ---
         gb_mode = QGroupBox("MODO DE OPERAÇÃO")
         gb_mode.setStyleSheet(group_style)
-        mode_layout = QHBoxLayout(gb_mode)
+        mode_layout = QGridLayout(gb_mode)
         mode_layout.setContentsMargins(10, 8, 10, 8)
+        mode_layout.setHorizontalSpacing(12)
+        mode_layout.setVerticalSpacing(6)
         mode_layout.setAlignment(Qt.AlignCenter)
-        mode_layout.setSpacing(12)
 
         self.btn_man = QPushButton("MANUAL")
         self.btn_auto = QPushButton("AUTOMÁTICO")
+        self.btn_local = QPushButton("LOCAL")
+        self.btn_remoto = QPushButton("REMOTO")
 
-        for b in [self.btn_man, self.btn_auto]:
-            b.setFixedSize(120, 26)
+        for b in [self.btn_man, self.btn_auto, self.btn_local, self.btn_remoto]:
+            b.setFixedSize(120, 28)
             b.setCursor(Qt.PointingHandCursor)
 
         self.btn_man.clicked.connect(lambda: self.set_control_mode('MAN'))
         self.btn_auto.clicked.connect(lambda: self.set_control_mode('AUTO'))
+        self.btn_local.clicked.connect(lambda: self.set_control_mode('LOCAL'))
+        self.btn_remoto.clicked.connect(lambda: self.set_control_mode('REMOTO'))
 
-        mode_layout.addWidget(self.btn_man)
-        mode_layout.addWidget(self.btn_auto)
+        mode_layout.addWidget(self.btn_man, 0, 0)
+        mode_layout.addWidget(self.btn_auto, 0, 1)
+        mode_layout.addWidget(self.btn_local, 1, 0)
+        mode_layout.addWidget(self.btn_remoto, 1, 1)
+        
         v_cmd.addWidget(gb_mode)
 
         # --- SEÇÃO 2: PARÂMETROS DO PROCESSO ---
@@ -218,9 +226,9 @@ class FaceplateDialog(QDialog):
         v_cmd.addWidget(status_box)
 
         # === DEMAIS ABAS ===
-        tab_alarm = self.create_table_tab(["Horário", "Alarme", "Estado"], [["06:18:02", "Sobrecorrente Motor", "Ativo"]])
+        tab_alarm = self.create_alarm_tab()
         tab_config = self.create_config_tab()
-        tab_interlock = self.create_table_tab(["Condição", "Status"], [["Nível Mínimo Tanque", "OK"], ["Presença de Fase", "OK"]])
+        tab_interlock = self.create_interlock_tab()
         tab_other = self.create_other_tab()
 
         self.stack.addWidget(tab_cmd)
@@ -250,12 +258,23 @@ class FaceplateDialog(QDialog):
 
     def add_form_row(self, grid, row, label, value, unit, editable=False, is_numeric=False):
         lbl = QLabel(label)
-        lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #374151; border: none; background: transparent;")
 
         inp = QLineEdit(str(value))
-        inp.setAlignment(Qt.AlignRight)
+        inp.setAlignment(Qt.AlignLeft)
         inp.setFixedSize(90, 24)
+        inp.setStyleSheet("""
+            QLineEdit {
+                color: #1F2937;
+                font-size: 11px;
+                font-weight: bold;
+                background-color: #FFFFFF;
+                border: 1px solid #CBD5E1;
+                border-radius: 3px;
+                padding-left: 4px;
+            }
+        """)
 
         if is_numeric and editable:
             validator = QDoubleValidator(0.0, 100.0, 2, inp)
@@ -265,7 +284,6 @@ class FaceplateDialog(QDialog):
         if not editable:
             inp.setReadOnly(True)
             inp.setFocusPolicy(Qt.NoFocus)
-            # Fonte forte e fundo destacado para variáveis do processo (PVs)
             inp.setStyleSheet("""
                 QLineEdit {
                     background-color: #E2E8F0;
@@ -273,25 +291,22 @@ class FaceplateDialog(QDialog):
                     border-radius: 3px;
                     font-size: 11px;
                     font-weight: bold;
-                    color: #0F172A;
-                    padding-right: 4px;
+                    color: #1F2937;
+                    padding-left: 4px;
                 }
             """)
 
         u_lbl = QLabel(unit)
+        u_lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         u_lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #475569; border: none; background: transparent;")
 
-        grid.addWidget(lbl, row, 0)
-        grid.addWidget(inp, row, 1)
-        grid.addWidget(u_lbl, row, 2)
+        grid.addWidget(lbl, row, 0, alignment=Qt.AlignLeft)
+        grid.addWidget(inp, row, 1, alignment=Qt.AlignLeft)
+        grid.addWidget(u_lbl, row, 2, alignment=Qt.AlignLeft)
         
         return inp
 
-    def create_table_tab(self, headers, data):
-        w = QWidget()
-        l = QVBoxLayout(w)
-        l.setContentsMargins(10, 10, 10, 10)
-
+    def create_table_widget(self, headers, data):
         table = QTableWidget(len(data), len(headers))
         table.setHorizontalHeaderLabels(headers)
         table.verticalHeader().setVisible(False)
@@ -316,25 +331,213 @@ class FaceplateDialog(QDialog):
                 item = QTableWidgetItem(str(val))
                 item.setTextAlignment(Qt.AlignCenter)
                 table.setItem(r, c, item)
+        return table
 
-        l.addWidget(table)
+    def create_alarm_tab(self):
+        w = QWidget()
+        l = QVBoxLayout(w)
+        l.setContentsMargins(12, 12, 12, 12)
+        l.setSpacing(10)
+
+        group_style = """
+            QGroupBox {
+                font-size: 9px; font-weight: bold; color: #4B5563;
+                border: 1px solid #CBD5E1; border-radius: 4px;
+                margin-top: 6px; background-color: #F8FAFC;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin; left: 8px; padding: 0 3px; background-color: #EAEBF0;
+            }
+        """
+
+        gb_active = QGroupBox("ALARMES ATIVOS")
+        gb_active.setStyleSheet(group_style)
+        v_active = QVBoxLayout(gb_active)
+        v_active.setContentsMargins(8, 12, 8, 8)
+        table_active = self.create_table_widget(["Horário", "Alarme", "Estado"], [["06:18:02", "Sobrecorrente Motor", "Ativo"]])
+        v_active.addWidget(table_active)
+
+        gb_history = QGroupBox("HISTÓRICO DE EVENTOS")
+        gb_history.setStyleSheet(group_style)
+        v_history = QVBoxLayout(gb_history)
+        v_history.setContentsMargins(8, 12, 8, 8)
+        table_history = self.create_table_widget(["Horário", "Evento", "Estado"], [["05:00:10", "Partida do Motor", "Normal"]])
+        v_history.addWidget(table_history)
+
+        l.addWidget(gb_active)
+        l.addWidget(gb_history)
         return w
 
     def create_config_tab(self):
         w = QWidget()
-        l = QGridLayout(w)
-        l.setContentsMargins(16, 16, 16, 16)
-        self.add_form_row(l, 0, "Freq. Mínima", "5,0", "Hz", editable=True, is_numeric=True)
-        self.add_form_row(l, 1, "Freq. Máxima", "60,0", "Hz", editable=True, is_numeric=True)
-        l.setRowStretch(2, 1)
+        l = QVBoxLayout(w)
+        l.setContentsMargins(12, 12, 12, 12)
+        l.setSpacing(10)
+
+        group_style = """
+            QGroupBox {
+                font-size: 9px; font-weight: bold; color: #4B5563;
+                border: 1px solid #CBD5E1; border-radius: 4px;
+                margin-top: 6px; background-color: #F8FAFC;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin; left: 8px; padding: 0 3px; background-color: #EAEBF0;
+            }
+        """
+
+        # Categoria 1: Identificação (Margens verticais e espaçamento interno otimizados)
+        gb_ident = QGroupBox("IDENTIFICAÇÃO")
+        gb_ident.setStyleSheet(group_style)
+        grid_ident = QGridLayout(gb_ident)
+        grid_ident.setContentsMargins(12, 4, 12, 8)
+        grid_ident.setHorizontalSpacing(10)
+        grid_ident.setVerticalSpacing(2)
+        grid_ident.setAlignment(Qt.AlignLeft)
+
+        lbl_tag = QLabel("Tag")
+        lbl_tag.setStyleSheet("font-size: 11px; font-weight: 600; color: #374151; border: none; background: transparent;")
+        self.inp_config_tag = QLineEdit(self.data.get('tag', ''))
+        self.inp_config_tag.setFixedSize(140, 24)
+        self.inp_config_tag.setStyleSheet("""
+            QLineEdit {
+                color: #1F2937; font-size: 11px; font-weight: bold;
+                background-color: #FFFFFF; border: 1px solid #CBD5E1;
+                border-radius: 3px; padding-left: 4px;
+            }
+        """)
+        grid_ident.addWidget(lbl_tag, 0, 0, alignment=Qt.AlignLeft)
+        grid_ident.addWidget(self.inp_config_tag, 0, 1, alignment=Qt.AlignLeft)
+
+        lbl_nome = QLabel("Nome")
+        lbl_nome.setStyleSheet("font-size: 11px; font-weight: 600; color: #374151; border: none; background: transparent;")
+        self.inp_config_nome = QTextEdit(self.data.get('desc', ''))
+        self.inp_config_nome.setFixedSize(280, 40)
+        self.inp_config_nome.setStyleSheet("""
+            QTextEdit {
+                color: #1F2937; font-size: 11px; font-weight: bold;
+                background-color: #FFFFFF; border: 1px solid #CBD5E1;
+                border-radius: 3px; padding: 4px;
+            }
+        """)
+        grid_ident.addWidget(lbl_nome, 1, 0, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+        grid_ident.addWidget(self.inp_config_nome, 1, 1, alignment=Qt.AlignLeft)
+
+        # Categoria 2: Limites de Operação
+        gb_limits = QGroupBox("LIMITES DE OPERAÇÃO")
+        gb_limits.setStyleSheet(group_style)
+        grid_limits = QGridLayout(gb_limits)
+        grid_limits.setContentsMargins(12, 10, 12, 8)
+        grid_limits.setHorizontalSpacing(10)
+        grid_limits.setVerticalSpacing(6)
+        grid_limits.setAlignment(Qt.AlignLeft)
+
+        def create_freq_row(row_idx, label_text, default_val):
+            lbl = QLabel(label_text)
+            lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #374151; border: none; background: transparent;")
+
+            container = QWidget()
+            container.setStyleSheet("background: transparent; border: none;")
+            h_layout = QHBoxLayout(container)
+            h_layout.setContentsMargins(0, 0, 0, 0)
+            h_layout.setSpacing(6)
+
+            inp = QLineEdit(default_val)
+            inp.setFixedSize(90, 24)
+            inp.setStyleSheet("""
+                QLineEdit {
+                    color: #1F2937; font-size: 11px; font-weight: bold;
+                    background-color: #FFFFFF; border: 1px solid #CBD5E1;
+                    border-radius: 3px; padding-left: 4px;
+                }
+            """)
+            validator = QDoubleValidator(0.0, 100.0, 2, inp)
+            validator.setNotation(QDoubleValidator.StandardNotation)
+            inp.setValidator(validator)
+
+            u_lbl = QLabel("Hz")
+            u_lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #475569; border: none; background: transparent;")
+
+            h_layout.addWidget(inp)
+            h_layout.addWidget(u_lbl)
+            h_layout.addStretch()
+
+            grid_limits.addWidget(lbl, row_idx, 0, alignment=Qt.AlignLeft)
+            grid_limits.addWidget(container, row_idx, 1, alignment=Qt.AlignLeft)
+            return inp
+
+        self.inp_freq_min = create_freq_row(0, "Freq. Mínima", "5,0")
+        self.inp_freq_max = create_freq_row(1, "Freq. Máxima", "60,0")
+
+        l.addWidget(gb_ident)
+        l.addWidget(gb_limits)
+        l.addStretch()
+        return w
+
+    def create_interlock_tab(self):
+        w = QWidget()
+        l = QVBoxLayout(w)
+        l.setContentsMargins(12, 12, 12, 12)
+        l.setSpacing(10)
+
+        group_style = """
+            QGroupBox {
+                font-size: 9px; font-weight: bold; color: #4B5563;
+                border: 1px solid #CBD5E1; border-radius: 4px;
+                margin-top: 6px; background-color: #F8FAFC;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin; left: 8px; padding: 0 3px; background-color: #EAEBF0;
+            }
+        """
+
+        gb_safety = QGroupBox("INTERLOCKS DE SEGURANÇA")
+        gb_safety.setStyleSheet(group_style)
+        v_safety = QVBoxLayout(gb_safety)
+        v_safety.setContentsMargins(8, 12, 8, 8)
+        table_safety = self.create_table_widget(["Condição", "Status"], [["Nível Mínimo Tanque", "OK"], ["Presença de Fase", "OK"]])
+        v_safety.addWidget(table_safety)
+
+        gb_perm = QGroupBox("PERMISSIVAS DE PARTIDA")
+        gb_perm.setStyleSheet(group_style)
+        v_perm = QVBoxLayout(gb_perm)
+        v_perm.setContentsMargins(8, 12, 8, 8)
+        table_perm = self.create_table_widget(["Permissiva", "Estado"], [["Painel Fechado", "OK"], ["Reset de Falha", "OK"]])
+        v_perm.addWidget(table_perm)
+
+        l.addWidget(gb_safety)
+        l.addWidget(gb_perm)
         return w
 
     def create_other_tab(self):
         w = QWidget()
-        l = QGridLayout(w)
+        l = QVBoxLayout(w)
         l.setContentsMargins(16, 16, 16, 16)
-        self.add_form_row(l, 0, "Horas Trab.", "1240", "h", editable=False)
-        l.setRowStretch(1, 1)
+        l.setSpacing(10)
+
+        group_style = """
+            QGroupBox {
+                font-size: 9px; font-weight: bold; color: #4B5563;
+                border: 1px solid #CBD5E1; border-radius: 4px;
+                margin-top: 6px; background-color: #F8FAFC;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin; left: 8px; padding: 0 3px; background-color: #EAEBF0;
+            }
+        """
+
+        gb_diag = QGroupBox("DIAGNÓSTICO E HORÍMETRO")
+        gb_diag.setStyleSheet(group_style)
+        grid_diag = QGridLayout(gb_diag)
+        grid_diag.setContentsMargins(12, 16, 12, 16)
+        grid_diag.setHorizontalSpacing(10)
+        grid_diag.setVerticalSpacing(10)
+        grid_diag.setAlignment(Qt.AlignLeft)
+
+        self.add_form_row(grid_diag, 0, "Horas Trab.", "1240", "h", editable=False)
+        self.add_form_row(grid_diag, 1, "Ciclos", "3450", "", editable=False)
+
+        l.addWidget(gb_diag)
+        l.addStretch()
         return w
 
     def switch_tab(self, index):
@@ -352,32 +555,37 @@ class FaceplateDialog(QDialog):
             self.main_app.update_motor_mode(self.data['tag'], mode)
 
     def update_ui_state(self):
-        is_manual = (self.data.get('modo', 'MAN') == 'MAN')
+        modo_atual = self.data.get('modo', 'MAN')
+        is_manual = (modo_atual == 'MAN')
+        is_auto = (modo_atual == 'AUTO')
+        is_local = (modo_atual == 'LOCAL')
+        is_remoto = (modo_atual == 'REMOTO')
         is_on = (self.data.get('status') == "ON")
 
         # 1. Estilização do Seletor de Modo
-        style_active_mode = "background: #374151; color: #FFFFFF; font-weight: bold; border: 1px solid #1F2937; border-radius: 3px; font-size: 10px;"
-        style_inactive_mode = "background: #FFFFFF; color: #4B5563; font-weight: bold; border: 1px solid #9CA3AF; border-radius: 3px; font-size: 10px;"
+        style_active_mode = "background: #374151; color: #FFFFFF; font-weight: bold; border: 1px solid #1F2937; border-radius: 3px; font-size: 11px;"
+        style_inactive_mode = "background: #FFFFFF; color: #4B5563; font-weight: bold; border: 1px solid #9CA3AF; border-radius: 3px; font-size: 11px;"
 
-        if is_manual:
-            self.btn_man.setStyleSheet(style_active_mode)
-            self.btn_man.setEnabled(False)
-            self.btn_auto.setStyleSheet(style_inactive_mode)
-            self.btn_auto.setEnabled(True)
-        else:
-            self.btn_auto.setStyleSheet(style_active_mode)
-            self.btn_auto.setEnabled(False)
-            self.btn_man.setStyleSheet(style_inactive_mode)
-            self.btn_man.setEnabled(True)
+        self.btn_man.setStyleSheet(style_active_mode if is_manual else style_inactive_mode)
+        self.btn_man.setEnabled(not is_manual)
 
-        # 2. Habilitação do Setpoint
+        self.btn_auto.setStyleSheet(style_active_mode if is_auto else style_inactive_mode)
+        self.btn_auto.setEnabled(not is_auto)
+
+        self.btn_local.setStyleSheet(style_active_mode if is_local else style_inactive_mode)
+        self.btn_local.setEnabled(not is_local)
+
+        self.btn_remoto.setStyleSheet(style_active_mode if is_remoto else style_inactive_mode)
+        self.btn_remoto.setEnabled(not is_remoto)
+
+        # 2. Habilitação do Setpoint (Apenas Manual permite alteração direta)
         if is_manual:
             self.inp_setpoint.setReadOnly(False)
             self.inp_setpoint.setFocusPolicy(Qt.StrongFocus)
             self.inp_setpoint.setStyleSheet("""
                 QLineEdit {
                     background: #FFFFFF; border: 1.5px solid #2563EB; border-radius: 3px;
-                    font-size: 11px; font-weight: bold; color: #111827; padding-right: 4px;
+                    font-size: 11px; font-weight: bold; color: #1F2937; padding-left: 4px;
                 }
                 QLineEdit:focus { border: 2px solid #1D4ED8; background: #F0F9FF; }
             """)
@@ -387,7 +595,7 @@ class FaceplateDialog(QDialog):
             self.inp_setpoint.setStyleSheet("""
                 QLineEdit {
                     background: #E2E8F0; border: 1px solid #CBD5E1; border-radius: 3px;
-                    font-size: 11px; font-weight: bold; color: #64748B; padding-right: 4px;
+                    font-size: 11px; font-weight: bold; color: #1F2937; padding-left: 4px;
                 }
             """)
 
